@@ -17,6 +17,8 @@ contract CompoundSample {
         // Creating a reference to the corresponding cToken contract
         CEth cToken = CEth(_cEtherContract);
         cToken.mint.value(msg.value).gas(250000)();
+        // Sending ctoken to msg.sender
+        cToken.transfer(msg.sender, cToken.balanceOf(address(this)));
         return true;
     }
 
@@ -33,31 +35,36 @@ contract CompoundSample {
 
         // Approve transfer on the ERC20 contract
         token.approve(_cErc20Contract, _numTokensToSupply);
-
+        // sending ether from msg.sender to this contract address
+        token.transferFrom(msg.sender, address(this), _numTokensToSupply);
         // Mint cTokens
         uint256 mintResult = cToken.mint(_numTokensToSupply);
+        // seding ctoken to msg.sender
+        cToken.transfer(msg.sender, cToken.balanceOf(address(this)));
         return mintResult;
     }
 
     function withdrawErc20Tokens(
         uint256 amount,
         bool redeemType,
-        address _cErc20Contract
+        address _cErc20Contract,
+        address _erc20Contract
     ) public returns (bool) {
+        // Creating a reference to the underlying asset contract
+        Erc20 token = Erc20(_erc20Contract);
         // Creating a reference to the corresponding cToken contract
         CErc20 cToken = CErc20(_cErc20Contract);
 
         uint256 redeemResult;
 
-        if (redeemType == true) {
-            // Retrieve your asset based on a cToken amount
-            redeemResult = cToken.redeem(amount);
-        } else {
-            // Retrieve your asset based on an amount of the asset
-            redeemResult = cToken.redeemUnderlying(amount);
-        }
+        // transfering ctoken from user to our contract address.
+        cToken.transferFrom(msg.sender, address(this), amount);
+        cToken.approve(_cToken, amount);
+        redeemResult = cToken.redeem(amount);
 
         emit MyLog("If this is not 0, there was an error", redeemResult);
+        // transfering erc20 to msg.sender
+        token.transfer(msg.sender, token.balanceOf(address(this)));
 
         return true;
     }
@@ -72,20 +79,18 @@ contract CompoundSample {
 
         uint256 redeemResult;
 
-        if (redeemType == true) {
-            // Retrieve your asset based on a cToken amount
-            redeemResult = cToken.redeem(amount);
-        } else {
-            // Retrieve your asset based on an amount of the asset
-            redeemResult = cToken.redeemUnderlying(amount);
-        }
+        // transfering ctoken from user to our contract address.
+        cToken.transferFrom(msg.sender, address(this), amount);
+        cToken.approve(_cToken, amount);
+        redeemResult = cToken.redeem(amount);
 
         emit MyLog("If this is not 0, there was an error", redeemResult);
 
+        msg.sender.transfer(address(this).balance);
         return true;
     }
 
-    function() external payable {}
+    function() external payable recieve;
 
     function borrowEth(
         address payable _cEtherAddress,
