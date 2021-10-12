@@ -9,6 +9,11 @@ import "./interfaces/compound.sol";
 contract CompoundSample {
     event MyLog(string, uint256);
 
+    mapping(address => unin256) addressToToken;
+
+    uint256 cTokenBalance = 0;
+    uint256 cEthBalance = 0;
+
     function supplyEthToCompound(address payable _cEtherContract)
         public
         payable
@@ -18,6 +23,10 @@ contract CompoundSample {
         CEth cToken = CEth(_cEtherContract);
         cToken.mint.value(msg.value).gas(250000)();
         // Sending ctoken to msg.sender
+        addressToToken[msg.sender] =
+            cToken.balanceOf(address(this)) -
+            cTokenBalance;
+        cTokenBalance = cToken.balanceOf(address(this));
         cToken.transfer(msg.sender, cToken.balanceOf(address(this)));
         return true;
     }
@@ -96,25 +105,43 @@ contract CompoundSample {
         address payable _cEtherAddress,
         address _comptrollerAddress,
         address _cTokenAddress,
-        address _underlyingAddress,
-        uint256 _underlyingToSupplyAsCollateral
+        uint256 _amount
     ) public returns (uint256) {
         CEth cEth = CEth(_cEtherAddress);
-        Comptroller comptroller = Comptroller(_comptrollerAddress);
         CErc20 cToken = CErc20(_cTokenAddress);
-        Erc20 underlying = Erc20(_underlyingAddress);
 
-        // Approve transfer of underlying
-        underlying.approve(_cTokenAddress, _underlyingToSupplyAsCollateral);
+        Comptroller comptroller = Comptroller(_comptrollerAddress);
+        PriceFeed priceFeed = PriceFeed(
+            0x922018674c12a7F0D394ebEEf9B58F186CdE13c1
+        );
 
-        // Supply underlying as collateral, get cToken in return
-        uint256 error = cToken.mint(_underlyingToSupplyAsCollateral);
-        require(error == 0, "CErc20.mint Error");
+        if (addressToToken[msg.sender] == 0) {
+            // If user haven't used supplyEth function then use this.
+            // Supply underlying as collateral, get cToken in return
+            uint256 error = cToken.mint(msg.value);
+            require(error == 0, "CErc20.mint Error");
+            addressToToken[msg.sender] =
+                cToken.balanceOf(address(this)) -
+                cTokenBalance;
+            cTokenBalance = cToken.balanceOf(address(this));
+        } else {
+            // else user have some ctoken in its address, then user have to send those ctoken
+            // to our contract address
+            // Approve transfer of underlying
+            cToken.approve(_cTokenAddress, addressToToken[msg.sender]);
+            cToken.transferFrom(msg.sender, address(this), amount);
+            addressToToken[msg.sender] =
+                cToken.balanceOf(address(this)) -
+                cTokenBalance;
+            cTokenBalance = cToken.balanceOf(address(this));
+        }
+
         // Enter the market so you can borrow another type of asset
         address[] memory cTokens = new address[](1);
         cTokens[0] = _cTokenAddress;
         uint256[] memory errors = comptroller.enterMarkets(cTokens);
         require(error[0] == 0, "Comptroller.enterMarkets failed.");
+
         // Get my account's total liquidity value in Compound
         (uint256 error2, uint256 liquidity, uint256 shortfall) = comptroller
             .getAccountLiquidity(address(this));
@@ -131,80 +158,29 @@ contract CompoundSample {
         );
         emit MyLog("Collateral Factor", collateralFactorMantissa);
 
-        // Get the amount of ETH added to your borrow each block
-        uint256 borrowRateMantissa = cEth.borrowRatePerBlock();
-        emit MyLog("Current ETH Borrow Rate", borrowRateMantissa);
-        uint256 numWeiToBorrow = 20000000000000000; // 0.02 ETH
+        uint256 price = priceFeed.getUnderlyingPrice(_cTokenToBorrow);
+
+        // calculating maximum borrow:
+        uint256 maxBorrow = (liquidity * (10**18)) / price;
+        require(maxBorrow > _amount, "Can't borrow this much!");
 
         // Borrow, then check the underlying balance for this contract's address
-        cEth.borrow(numWeiToBorrow);
+        cEth.borrow(_amount);
 
         uint256 borrows = cEth.borrowBalanceCurrent(address(this));
+
         emit MyLog("Current ETH borrow amount", borrows);
 
+        msg.sender.transfer(borrows);
         return borrows;
     }
 
-    function borrowErc20(
-        address _comptrollerAddress,
-        address _cTokenAddress,
-        address _underlyingAddress,
-        uint256 _underlyingToSupplyAsCollateral
-    ) public returns (uint256) {
-        Comptroller comptroller = Comptroller(_comptrollerAddress);
-        CErc20 cToken = CErc20(_cTokenAddress);
-        Erc20 underlying = Erc20(_underlyingAddress);
-
-        // Approve transfer of underlying
-        underlying.approve(_cTokenAddress, _underlyingToSupplyAsCollateral);
-
-        // Supply underlying as collateral, get cToken in return
-        uint256 error = cToken.mint(_underlyingToSupplyAsCollateral);
-        require(error == 0, "CErc20.mint Error");
-        // Enter the market so you can borrow another type of asset
-        address[] memory cTokens = new address[](1);
-        cTokens[0] = _cTokenAddress;
-        uint256[] memory errors = comptroller.enterMarkets(cTokens);
-        if (errors[0] != 0) {
-            revert("Comptroller.enterMarkets failed.");
-        }
-        // Get my account's total liquidity value in Compound
-        (uint256 error2, uint256 liquidity, uint256 shortfall) = comptroller
-            .getAccountLiquidity(address(this));
-        require(error2 == 0, "Comptroller.getAccountLiquidity failed.");
-        require(shortfall == 0, "account underwater");
-        require(liquidity > 0, "account has excess collateral");
-
-        // Borrowing near the max amount will result
-        // in your account being liquidated instantly
-        emit MyLog("Maximum ETH Borrow (borrow far less!)", liquidity);
-        // Get the collateral factor for our collateral
-        (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(
-            _cTokenAddress
-        );
-        emit MyLog("Collateral Factor", collateralFactorMantissa);
-
-        // Get the amount of ETH added to your borrow each block
-        uint256 borrowRateMantissa = cToken.borrowRatePerBlock();
-        emit MyLog("Current ETH Borrow Rate", borrowRateMantissa);
-        // Borrow a fixed amount of ETH below our maximum borrow amount
-        uint256 numWeiToBorrow = 20000000000000000; // 0.02 ETH
-
-        // Borrow, then check the underlying balance for this contract's address
-        cToken.borrow(numWeiToBorrow);
-
-        uint256 borrows = cToken.borrowBalanceCurrent(address(this));
-        emit MyLog("Current ETH borrow amount", borrows);
-
-        return borrows;
-    }
-
-    function EthRepayBorrow(address _cEtherAddress, uint256 amount)
-        public
-        returns (bool)
-    {
+    function EthRepayBorrow(address _cEtherAddress) public returns (bool) {
         CEth cEth = CEth(_cEtherAddress);
+        uint356 amount = addressToToken[msg.sender];
+        cTokenBalance = cTokenBalance - amount;
         cEth.repayBorrow.value(amount)();
+        msg.sender.transfer(cEth.balanceOf(address(this)));
         return true;
     }
 }
