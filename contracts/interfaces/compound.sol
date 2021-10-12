@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7;
+pragma solidity ^0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface Erc20 {
-    function approve(address, uint256) external returns (bool);
-
-    function transfer(address, uint256) external returns (bool);
-}
+interface Erc20 is IERC20 {}
 
 interface CErc20 is IERC20 {
-    function balanceOf(address) external view returns (uint256);
+    function balanceOf(address) external view override returns (uint256);
 
     function mint(uint256) external returns (uint256);
 
@@ -40,7 +36,7 @@ interface CErc20 is IERC20 {
 }
 
 interface CEth is IERC20 {
-    function balanceOf(address) external view returns (uint256);
+    function balanceOf(address) external view override returns (uint256);
 
     function mint() external payable;
 

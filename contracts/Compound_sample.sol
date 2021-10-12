@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Unlicense
 
-pragma solidity ^0.7.3;
+pragma solidity ^0.8.3;
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -9,7 +9,7 @@ import "./interfaces/compound.sol";
 contract CompoundSample {
     event MyLog(string, uint256);
 
-    mapping(address => unin256) addressToToken;
+    mapping(address => uint256) addressToToken;
 
     uint256 cTokenBalance = 0;
     uint256 cEthBalance = 0;
@@ -21,7 +21,7 @@ contract CompoundSample {
     {
         // Creating a reference to the corresponding cToken contract
         CEth cToken = CEth(_cEtherContract);
-        cToken.mint.value(msg.value).gas(250000)();
+        cToken.mint{value: msg.value}();
         // Sending ctoken to msg.sender
         addressToToken[msg.sender] =
             cToken.balanceOf(address(this)) -
@@ -68,7 +68,7 @@ contract CompoundSample {
 
         // transfering ctoken from user to our contract address.
         cToken.transferFrom(msg.sender, address(this), amount);
-        cToken.approve(_cToken, amount);
+        cToken.approve(_cErc20Contract, amount);
         redeemResult = cToken.redeem(amount);
 
         emit MyLog("If this is not 0, there was an error", redeemResult);
@@ -90,13 +90,13 @@ contract CompoundSample {
 
         // transfering ctoken from user to our contract address.
         cToken.transferFrom(msg.sender, address(this), amount);
-        cToken.approve(_cToken, amount);
+        cToken.approve(_cEtherContract, amount);
         redeemResult = cToken.redeem(amount);
 
         emit MyLog("If this is not 0, there was an error", redeemResult);
 
-        msg.sender.transfer(address(this).balance);
-        return true;
+        (bool sent, ) = msg.sender.call{value: address(this).balance}("");
+        return sent;
     }
 
     function() external payable recieve;
@@ -115,6 +115,8 @@ contract CompoundSample {
             0x922018674c12a7F0D394ebEEf9B58F186CdE13c1
         );
 
+        uint256 price = priceFeed.getUnderlyingPrice(_cEtherAddress);
+
         if (addressToToken[msg.sender] == 0) {
             // If user haven't used supplyEth function then use this.
             // Supply underlying as collateral, get cToken in return
@@ -129,7 +131,7 @@ contract CompoundSample {
             // to our contract address
             // Approve transfer of underlying
             cToken.approve(_cTokenAddress, addressToToken[msg.sender]);
-            cToken.transferFrom(msg.sender, address(this), amount);
+            cToken.transferFrom(msg.sender, address(this), _amount);
             addressToToken[msg.sender] =
                 cToken.balanceOf(address(this)) -
                 cTokenBalance;
@@ -140,7 +142,7 @@ contract CompoundSample {
         address[] memory cTokens = new address[](1);
         cTokens[0] = _cTokenAddress;
         uint256[] memory errors = comptroller.enterMarkets(cTokens);
-        require(error[0] == 0, "Comptroller.enterMarkets failed.");
+        require(errors[0] == 0, "Comptroller.enterMarkets failed.");
 
         // Get my account's total liquidity value in Compound
         (uint256 error2, uint256 liquidity, uint256 shortfall) = comptroller
@@ -148,17 +150,6 @@ contract CompoundSample {
         require(error2 == 0, "Comptroller.getAccountLiquidity failed.");
         require(shortfall == 0, "account underwater");
         require(liquidity > 0, "account has excess collateral");
-
-        // Borrowing near the max amount will result
-        // in your account being liquidated instantly
-        emit MyLog("Maximum ETH Borrow (borrow far less!)", liquidity);
-        // Get the collateral factor for our collateral
-        (bool isListed, uint256 collateralFactorMantissa) = comptroller.markets(
-            _cTokenAddress
-        );
-        emit MyLog("Collateral Factor", collateralFactorMantissa);
-
-        uint256 price = priceFeed.getUnderlyingPrice(_cTokenToBorrow);
 
         // calculating maximum borrow:
         uint256 maxBorrow = (liquidity * (10**18)) / price;
@@ -171,17 +162,19 @@ contract CompoundSample {
 
         emit MyLog("Current ETH borrow amount", borrows);
 
-        msg.sender.transfer(borrows);
+        (bool sent, ) = msg.sender.call{value: borrows}("");
         return borrows;
     }
 
     function EthRepayBorrow(address _cEtherAddress) public returns (bool) {
         CEth cEth = CEth(_cEtherAddress);
-        uint356 amount = addressToToken[msg.sender];
+        uint256 amount = addressToToken[msg.sender];
         addressToToken[msg.sender] = 0;
         cTokenBalance = cTokenBalance - amount;
-        cEth.repayBorrow.value(amount)();
-        msg.sender.transfer(cEth.balanceOf(address(this)));
-        return true;
+        cEth.repayBorrow{value: amount}();
+        (bool sent, ) = msg.sender.call{value: cEth.balanceOf(address(this))}(
+            ""
+        );
+        return sent;
     }
 }
