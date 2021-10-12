@@ -12,13 +12,18 @@ contract CompoundSample {
 
     event MyLog(string, uint256);
 
-    function supplyEthToCompound(
-        address payable _cEtherContract,
-        uint256 _amount
-    ) public payable returns (bool) {
+    /*
+    @param: cEther contract address, amount to supply
+    @dev: mint user Eth to compound protocol and retrive cEth.
+    */
+    function supplyEthToCompound(address payable _cEtherContract)
+        public
+        payable
+        returns (bool)
+    {
         // Creating a reference to the corresponding cToken contract
         CEth cToken = CEth(_cEtherContract);
-        cToken.mint{value: _amount}();
+        cToken.mint{value: msg.value}();
         return true;
     }
 
