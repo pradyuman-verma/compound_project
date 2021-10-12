@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  const myCompound = await hre.ethers.getContractFactory("Compound_sample");
+  const myCompound = await hre.ethers.getContractFactory("CompoundSample");
   const compound = await myCompound.deploy();
 
   await compound.deployed();
