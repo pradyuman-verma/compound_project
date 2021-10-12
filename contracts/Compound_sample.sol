@@ -106,7 +106,7 @@ contract CompoundSample {
         address _comptrollerAddress,
         address _cTokenAddress,
         uint256 _amount
-    ) public returns (uint256) {
+    ) public payable returns (uint256) {
         CEth cEth = CEth(_cEtherAddress);
         CErc20 cToken = CErc20(_cTokenAddress);
 
@@ -178,6 +178,7 @@ contract CompoundSample {
     function EthRepayBorrow(address _cEtherAddress) public returns (bool) {
         CEth cEth = CEth(_cEtherAddress);
         uint356 amount = addressToToken[msg.sender];
+        addressToToken[msg.sender] = 0;
         cTokenBalance = cTokenBalance - amount;
         cEth.repayBorrow.value(amount)();
         msg.sender.transfer(cEth.balanceOf(address(this)));
