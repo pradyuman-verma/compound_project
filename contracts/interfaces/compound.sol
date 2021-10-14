@@ -3,8 +3,6 @@ pragma solidity ^0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface Erc20 is IERC20 {}
-
 interface CErc20 is IERC20 {
     function balanceOf(address) external view override returns (uint256);
 
