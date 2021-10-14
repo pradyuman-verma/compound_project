@@ -8,10 +8,12 @@ require("@openzeppelin/hardhat-upgrades");
 
 module.exports = {
   solidity: "0.8.3",
+  defaultNetwork: "hardhat",
   networks:{
     hardhat:{
       forking:{
-        url: "https://rinkeby.infura.io/v3/8669d625ab2d446c9d2600f2af74ae81"
+        url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_ENDPOINT}`,
+        blockNumber: 13405033
       },
       chainId: 1337
     },
