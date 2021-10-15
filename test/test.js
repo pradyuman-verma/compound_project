@@ -1,25 +1,62 @@
+require('dotenv').config()
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("Compound-testing", function () {
-  let myCompound, compound;
+  let myCompound, compound, owner;
 
-  beforeEach(async () => {
-    myCompound = await ethers.getContractFactory("CompoundSample");
-    const [owner, addr1, ...addrs] = await ethers.getSigners();   
-    compound = await myCompound.deploy(owner.getAddress());
-    await compound.deployed();
-  });
+  const DAI = process.env.DAI;
+  const CDAI = process.env.CDAI;
+  const CETH = process.env.CETH;
+  const ACC = process.env.USER;
 
-  it("supplyEthToCompound should return true", async function () {
-    expect(await compound.supplyEthToCompound(0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5, 2))
-    .to
-    .equal(true);
-  });
+  //describe("ETH-TESTING", function () {
+    beforeEach(async () => {
+    console.log("1")
+      myCompound = await ethers.getContractFactory("CompoundSample");
+    console.log("2")
 
-  // it("withdrawEth should return true", async function () {
-  //   expect(await compound.withdrawEth(10, 0xd6801a1dffcd0a410336ef88def4320d6df1883e))
-  //   .to
-  //   .equal(true);
-  // });
+      compound = await myCompound.deploy();
+    console.log("3")
+
+     // [owner, _] = await ethers.getSigners();   
+    console.log("4")
+
+      await compound.deployed();
+      //myCompound.connect(owner);
+      console.log("Deployed Successfully");
+    });
+
+    let cTokenAmount = 3000;
+
+    it('blah blah blah', () => {
+      console.log(5)
+      await artifacts.readArtifact("CEth")
+      .then((x) => {
+        console.log(x);
+      })
+      // .then(() => {
+      //   console.log(5.5)
+      //   console.log(cEthArtifact.abi);
+      // });
+      //console.log(cEthArtifact);
+      console.log(6)
+    });
+
+    // const cEth = new ethers.Contract(CETH, cEthArtifact.abi, ethers.provider);
+    // const cEthWithSigner = cEth.connect(owner);
+
+    // network.provider.send("hardhat_setBalance", [
+    //     user.address,
+    //     ethers.utils.parseEther('10.0').toHexString(),
+    // ]);
+
+    // it('Should supply Eth to compound', async () => {
+    //   await myCompound.supplyEthToCompound(CETH, {value: ethers.utils.parseEther('1.0').toHexString()});
+    // }).timeout(100000);
+
+    // it('Should Withdraw Eth from compound', async () => {
+    //   await myCompound.withdrawEth(cTokenAmount, CETH);
+    // }).timeout(100000);
+  //});
 });
