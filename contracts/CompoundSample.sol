@@ -11,7 +11,8 @@ contract CompoundSample {
     using SafeERC20 for IERC20;
 
     uint256 userTokenBalance = 0;
-    function() external payable recieve;
+
+    receive() external payable {}
 
     /* 
     - Supply, withdraw, borrow, repay functions for Eth.
@@ -86,10 +87,10 @@ contract CompoundSample {
 
         // calculating maximum borrow:
         uint256 maxBorrow = (liquidity * (10**18)) / price;
-        require(maxBorrow > _amount, "Can't borrow this much!");
+        require(maxBorrow > _amount, "Can't borrow, choose smaller value");
 
         // Borrow, then check the underlying balance for this contract's address
-        require(cEth.borrow(amount) == 0, "Borrow Failed !!");
+        require(cEth.borrow(amount) == 0, "Borrow failed due to some error !");
         (bool sent, ) = msg.sender.call{value: cEth.balanceOf(address(this))}(
             ""
         );
@@ -149,8 +150,7 @@ contract CompoundSample {
     function borrowErc20(
         address payable _cTokenAddress,
         address _tokenAddress,
-        uint256 _amount,
-        uint256 _decimals
+        uint256 _amount
     ) public payable {
         uint256 amount = _amount;
         CErc20 cToken = CErc20(_cTokenAddress);
@@ -179,7 +179,7 @@ contract CompoundSample {
         require(liquidity > 0, "account has excess collateral");
 
         // calculating maximum borrow:
-        uint256 maxBorrow = (liquidity * (10**_decimals)) / price;
+        uint256 maxBorrow = (liquidity * (10**18)) / price;
         require(maxBorrow > _amount, "Can't borrow this much!");
 
         // Borrow, then check the underlying balance for this contract's address
