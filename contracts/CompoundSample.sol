@@ -4,15 +4,28 @@ pragma solidity ^0.8.3;
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/compound.sol";
 
-contract CompoundSample {
+contract CompoundSample is Initializable {
     using SafeERC20 for IERC20;
 
-    uint256 userTokenBalance = 0;
+    uint256 userTokenBalance;
+    address comptrollerAddress;
+    address priceFeedAddress;
 
     receive() external payable {}
+
+    function set_init(
+        address _comptrollerAddress,
+        address _priceFeedAddress,
+        uint256 _userTokenBalance
+    ) public {
+        comptrollerAddress = _comptrollerAddress;
+        priceFeedAddress = _priceFeedAddress;
+        userTokenBalance = _userTokenBalance;
+    }
 
     /* 
     - Supply, withdraw, borrow, repay functions for Eth.
@@ -63,12 +76,8 @@ contract CompoundSample {
         uint256 amount = _amount;
         CEth cEth = CEth(_cEtherAddress);
 
-        Comptroller comptroller = Comptroller(
-            0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B
-        );
-        PriceFeed priceFeed = PriceFeed(
-            0x922018674c12a7F0D394ebEEf9B58F186CdE13c1
-        );
+        Comptroller comptroller = Comptroller(comptrollerAddress);
+        PriceFeed priceFeed = PriceFeed(priceFeedAddress);
 
         uint256 price = priceFeed.getUnderlyingPrice(_cEtherAddress);
 
@@ -156,12 +165,8 @@ contract CompoundSample {
         CErc20 cToken = CErc20(_cTokenAddress);
         IERC20 token = IERC20(_tokenAddress);
 
-        Comptroller comptroller = Comptroller(
-            0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B
-        );
-        PriceFeed priceFeed = PriceFeed(
-            0x922018674c12a7F0D394ebEEf9B58F186CdE13c1
-        );
+        Comptroller comptroller = Comptroller(comptrollerAddress);
+        PriceFeed priceFeed = PriceFeed(priceFeedAddress);
 
         uint256 price = priceFeed.getUnderlyingPrice(_cTokenAddress);
 
